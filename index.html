@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Şifreleme ve Hashleme Aracı</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            color: #444;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: bold;
+        }
+        input, select, button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #007BFF;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #results {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e4e4e4;
+            border-radius: 5px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>Şifreleme ve Hashleme Aracı</h1>
+    <div class="container">
+        <label for="inputText">Metni Girin:</label>
+        <input type="text" id="inputText" placeholder="Metni buraya yazın" />
+        
+        <label for="operation">İşlem Seçin:</label>
+        <select id="operation" onchange="toggleFields()">
+            <option value="MD5">MD5 Hash</option>
+            <option value="SHA1">SHA-1 Hash</option>
+            <option value="SHA256">SHA-256 Hash</option>
+            <option value="SHA512">SHA-512 Hash</option>
+            <option value="CRC32">CRC-32 Hesapla</option>
+            <option value="DES">DES Şifreleme & Çözme</option>
+            <option value="Vigenere">Vigenère Şifreleme & Çözme</option>
+            <option value="AES">AES Şifreleme & Çözme</option>
+            <option value="Afin">Afin Şifreleme & Çözme</option>
+            <option value="Sezar">Sezar Şifreleme</option>
+            <option value="RSA">RSA Şifreleme & Çözme</option>
+            <option value="Atbash">Atbash Şifreleme</option>
+            <option value="DiffieHelman">Diffie-Hellman Anahtar Paylaşımı</option>
+        </select>
+
+        <div id="additionalFields"></div>
+
+        <button onclick="process()">İşlemi Gerçekleştir</button>
+
+        <div id="results"></div>
+    </div>
+    
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.1.10/jsrsasign-all-min.js"></script>
+    <script>
+        function toggleFields() {
+            const operation = document.getElementById('operation').value;
+            const additionalFields = document.getElementById('additionalFields');
+            additionalFields.innerHTML = ""; // Önce alanları temizle
+
+            if (operation === "DES" || operation === "AES" || operation === "Vigenere") {
+                additionalFields.innerHTML = `
+                    <label for="key">Anahtar:</label>
+                    <input type="text" id="key" placeholder="Şifreleme anahtarını girin" />
+                `;
+            } else if (operation === "Sezar") {
+                additionalFields.innerHTML = `
+                    <label for="sezarShift">Kaydırma Değeri:</label>
+                    <input type="number" id="sezarShift" placeholder="Kaydırma değeri" />
+                `;
+            } else if (operation === "Afin") {
+                additionalFields.innerHTML = `
+                    <label for="aValue">A Değeri:</label>
+                    <input type="number" id="aValue" placeholder="A Değerini Girin" />
+                    <label for="bValue">B Değeri:</label>
+                    <input type="number" id="bValue" placeholder="B Değeri Girin" />
+                `;
+            } else if (operation === "RSA") {
+                additionalFields.innerHTML = `
+                    <label for="rsaPublicKey">Genel Anahtar (RSA):</label>
+                    <input type="text" id="rsaPublicKey" placeholder="Genel anahtarı girin" />
+                    <label for="rsaPrivateKey">Özel Anahtar (RSA):</label>
+                    <input type="text" id="rsaPrivateKey" placeholder="Özel anahtarı girin" />
+                `;
+            } else if (operation === "DiffieHelman") {
+                additionalFields.innerHTML = `
+                    <label for="privateKey">Özel Anahtarınızı Girin:</label>
+                    <input type="text" id="privateKey" placeholder="Özel anahtarınızı girin" />
+                `;
+            }
+        }
+
+        function process() {
+            const text = document.getElementById('inputText').value.trim();
+            const operation = document.getElementById('operation').value;
+            const key = document.getElementById('key') ? document.getElementById('key').value.trim() : null;
+            const shift = document.getElementById('sezarShift') ? parseInt(document.getElementById('sezarShift').value) : null;
+            const a = document.getElementById('aValue') ? parseInt(document.getElementById('aValue').value) : null;
+            const b = document.getElementById('bValue') ? parseInt(document.getElementById('bValue').value) : null;
+            const publicKey = document.getElementById('rsaPublicKey') ? document.getElementById('rsaPublicKey').value.trim() : null;
+            const privateKey = document.getElementById('rsaPrivateKey') ? document.getElementById('rsaPrivateKey').value.trim() : null;
+            const userPrivateKey = document.getElementById('privateKey') ? document.getElementById('privateKey').value.trim() : null;
+
+            const results = document.getElementById('results');
+            results.innerHTML = ""; // Önce sonuç alanını temizle
+
+            if (!text && operation !== "DiffieHelman" && operation !== "RSA") {
+                alert("Lütfen bir metin girin!");
+                return;
+            }
+
+            switch (operation) {
+                case "MD5":
+                    results.innerHTML = `<strong>MD5 Hash:</strong> ${CryptoJS.MD5(text).toString()}`;
+                    break;
+                case "SHA1":
+                    results.innerHTML = `<strong>SHA-1 Hash:</strong> ${CryptoJS.SHA1(text).toString()}`;
+                    break;
+                case "SHA256":
+                    results.innerHTML = `<strong>SHA-256 Hash:</strong> ${CryptoJS.SHA256(text).toString()}`;
+                    break;
+                case "SHA512":
+                    results.innerHTML = `<strong>SHA-512 Hash:</strong> ${CryptoJS.SHA512(text).toString()}`;
+                    break;
+                case "CRC32":
+                    results.innerHTML = `<strong>CRC-32:</strong> ${calculateCRC32(text)}`;
+                    break;
+                case "DES":
+                    if (key.length !== 8) {
+                        alert("DES için anahtar 8 karakter olmalıdır!");
+                        return;
+                    }
+                    const desEncrypted = CryptoJS.DES.encrypt(text, key).toString();
+                    const desDecrypted = CryptoJS.DES.decrypt(desEncrypted, key).toString(CryptoJS.enc.Utf8);
+                    results.innerHTML = `<strong>Şifreli (DES):</strong> ${desEncrypted}<br><strong>Çözülen:</strong> ${desDecrypted}`;
+                    break;
+                case "AES":
+                    const aesEncrypted = CryptoJS.AES.encrypt(text, key).toString();
+                    const aesDecrypted = CryptoJS.AES.decrypt(aesEncrypted, key).toString(CryptoJS.enc.Utf8);
+                    results.innerHTML = `<strong>Şifreli (AES):</strong> ${aesEncrypted}<br><strong>Çözülen:</strong> ${aesDecrypted}`;
+                    break;
+                case "Vigenere":
+                    if (!key) {
+                        alert("Vigenère şifrelemesi için bir anahtar girin!");
+                        return;
+                    }
+                    results.innerHTML = `<strong>Şifreli (Vigenère):</strong> ${vigenereEncrypt(text, key)}<br><strong>Çözülen:</strong> ${vigenereDecrypt(text, key)}`;
+                    break;
+                case "Sezar":
+                    if (isNaN(shift)) {
+                        alert("Kaydırma değeri girin!");
+                        return;
+                    }
+                    results.innerHTML = `<strong>Şifreli (Sezar):</strong> ${caesarCipher(text, shift)}`;
+                    break;
+                case "Afin":
+                    if (isNaN(a) || isNaN(b)) {
+                        alert("A ve B değerlerini girin!");
+                        return;
+                    }
+                    results.innerHTML = `<strong>Şifreli (Afin):</strong> ${affineCipher(text, a, b)}`;
+                    break;
+                case "RSA":
+                    if (!publicKey || !privateKey) {
+                        alert("RSA için anahtarları girin!");
+                        return;
+                    }
+                    const rsaEncrypted = encryptWithRSA(text, publicKey);
+                    const rsaDecrypted = decryptWithRSA(rsaEncrypted, privateKey);
+                    results.innerHTML = `<strong>Şifreli (RSA):</strong> ${rsaEncrypted}<br><strong>Çözülen:</strong> ${rsaDecrypted}`;
+                    break;
+                case "Atbash":
+                    results.innerHTML = `<strong>Atbash Şifreli:</strong> ${atbashCipher(text)}`;
+                    break;
+                case "DiffieHelman":
+                    if (!userPrivateKey) {
+                        alert("Diffie-Hellman için özel anahtarınızı girin!");
+                        return;
+                    }
+                    // Basit bir Diffie-Hellman örneği (modüler aritmetik ve örnek hesaplama)
+                    const p = 23; // Örnek bir asal sayı
+                    const g = 5;  // Gerekli olan sabit sayı
+                    const userPublicKey = Math.pow(g, userPrivateKey) % p;
+                    results.innerHTML = `<strong>Hesaplanan Kullanıcı Yayın Anahtarı:</strong> ${userPublicKey}`;
+                    break;
+                default:
+                    alert("Geçersiz işlem seçildi!");
+                    break;
+            }
+        }
+
+        function calculateCRC32(str) {
+            let crc32Table = [];
+            let crc32 = 0;
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 8; j > 0; j--) {
+                    if (c & 1) c = (c >>> 1) ^ 0xedb88320;
+                    else c >>>= 1;
+                }
+                crc32Table[i] = c;
+            }
+            for (let i = 0; i < str.length; i++) {
+                crc32 = (crc32 >>> 8) ^ crc32Table[(crc32 ^ str.charCodeAt(i)) & 0xff];
+            }
+            return (crc32 ^ 0xffffffff) >>> 0;
+        }
+
+        function vigenereEncrypt(text, key) {
+            let result = '';
+            let keyIndex = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charCode = char.charCodeAt(0);
+                const keyCode = key[keyIndex % key.length].charCodeAt(0);
+                result += String.fromCharCode((charCode + keyCode) % 256);
+                keyIndex++;
+            }
+            return result;
+        }
+
+        function vigenereDecrypt(text, key) {
+            let result = '';
+            let keyIndex = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charCode = char.charCodeAt(0);
+                const keyCode = key[keyIndex % key.length].charCodeAt(0);
+                result += String.fromCharCode((charCode - keyCode + 256) % 256);
+                keyIndex++;
+            }
+            return result;
+        }
+
+        function caesarCipher(text, shift) {
+            return text.split('')
+                .map(char => String.fromCharCode(char.charCodeAt(0) + shift))
+                .join('');
+        }
+
+        function affineCipher(text, a, b) {
+            return text.split('')
+                .map(char => String.fromCharCode((a * (char.charCodeAt(0) - 65) + b) % 26 + 65))
+                .join('');
+        }
+
+        function atbashCipher(text) {
+            return text.split('')
+                .map(char => String.fromCharCode(155 - char.charCodeAt(0)))
+                .join('');
+        }
+
+        function encryptWithRSA(text, publicKey) {
+            const rsaKey = new RSAKey();
+            rsaKey.setPublic(publicKey, '10001');
+            return rsaKey.encrypt(text);
+        }
+
+        function decryptWithRSA(encryptedText, privateKey) {
+            const rsaKey = new RSAKey();
+            rsaKey.setPrivate(privateKey, '10001');
+            return rsaKey.decrypt(encryptedText);
+        }
+    </script>
+</body>
+</html>
